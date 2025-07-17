@@ -3,34 +3,303 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>โปรแกรมคำนวณ Dilution factor</title>
+    <title>อินโฟกราฟิกและเครื่องคำนวณการเจือจางคลอรีน</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        /*-- ทำให้ body และ html ไม่มีระยะขอบ และสูงเต็มจอ --*/
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overflow: hidden; /*-- ป้องกันไม่ให้เกิด scrollbar ที่หน้าหลัก --*/
+        body {
+            font-family: 'Sarabun', sans-serif;
         }
-
-        /*-- ทำให้ iframe ขยายเต็มหน้าจอ และไม่มีเส้นขอบ --*/
-        .responsive-iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
+        .chart-container {
+            position: relative;
             width: 100%;
-            height: 100%;
-            border: none; /*-- ลบเส้นขอบของ iframe ออก --*/
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .ratio-btn.active {
+            background-color: #008DD5;
+            color: white;
+            border-color: #008DD5;
         }
     </style>
 </head>
-<body>
+<body class="bg-[#F0F7FA] text-[#0A3F5E]">
 
-    <iframe 
-        class="responsive-iframe"
-        src="https://script.google.com/macros/s/AKfycbwNi0X17hu42FJStEhu-GvlaufC7rVPI82upBXP4jPQRNnX3lV80kj0p3L9puW4Q1wg3g/exec"
-        title="โปรแกรมคำนวณ Dilution factor">
-    </iframe>
+    <div class="container mx-auto p-4 md:p-8">
 
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-[#0A3F5E] mb-2">คู่มือการเจือจางคลอรีน</h1>
+            <p class="text-lg md:text-xl text-[#005F8C]">เครื่องมือคำนวณและแสดงภาพสำหรับคลอรีนน้ำ 10% ในถัง 100 ลิตร</p>
+        </header>
+
+        <main>
+            <section id="calculator" class="bg-white rounded-xl shadow-lg p-6 md:p-8 mb-12">
+                <h2 class="text-2xl md:text-3xl font-bold text-center mb-6">เครื่องคำนวณการเติมคลอรีนแบบโต้ตอบ</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <div class="mb-6">
+                            <label for="remainingVolume" class="block text-lg font-semibold mb-2">1. ปรับปริมาณน้ำยาที่เหลือในถัง (ลิตร):</label>
+                            <input type="range" id="remainingVolume" min="0" max="100" value="50" step="10" class="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer range-lg">
+                            <div class="flex justify-between text-sm mt-1">
+                                <span>0</span>
+                                <span>25</span>
+                                <span>50</span>
+                                <span>75</span>
+                                <span>100</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <p class="block text-lg font-semibold mb-3">2. เลือกอัตราส่วนการผสม:</p>
+                            <div id="ratioSelector" class="flex flex-wrap gap-3">
+                                <button class="ratio-btn border-2 border-gray-300 px-4 py-2 rounded-full font-semibold transition" data-ratio="1:1">1:1</button>
+                                <button class="ratio-btn border-2 border-gray-300 px-4 py-2 rounded-full font-semibold transition active" data-ratio="1:4">1:4</button>
+                                <button class="ratio-btn border-2 border-gray-300 px-4 py-2 rounded-full font-semibold transition" data-ratio="1:9">1:9</button>
+                                <button class="ratio-btn border-2 border-gray-300 px-4 py-2 rounded-full font-semibold transition" data-ratio="1:2">1:2</button>
+                                <button class="ratio-btn border-2 border-gray-300 px-4 py-2 rounded-full font-semibold transition" data-ratio="1:6">1:6</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#F0F7FA] rounded-lg p-6 text-center">
+                        <p class="text-lg mb-2">เมื่อน้ำยาในถังเหลือ <span id="remainingValue" class="font-bold text-2xl text-[#008DD5]">50</span> ลิตร</p>
+                        <p class="text-lg mb-4">คุณต้องเติมน้ำยาทั้งหมด <span id="toAddValue" class="font-bold text-2xl text-[#008DD5]">50</span> ลิตร</p>
+                        <div class="border-t pt-4">
+                            <h3 class="text-xl font-bold mb-3">ส่วนผสมที่ต้องเติม:</h3>
+                            <div class="flex justify-around">
+                                <div>
+                                    <p class="text-base">คลอรีน 10%</p>
+                                    <p id="chlorineValue" class="text-4xl font-bold text-[#008DD5]">10</p>
+                                    <p class="text-base">ลิตร</p>
+                                </div>
+                                <div>
+                                    <p class="text-base">น้ำประปา</p>
+                                    <p id="waterValue" class="text-4xl font-bold text-[#33AFFF]">40</p>
+                                    <p class="text-base">ลิตร</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="chart-section" class="bg-white rounded-xl shadow-lg p-6 md:p-8 mb-12">
+                <h2 class="text-2xl md:text-3xl font-bold text-center mb-2">เปรียบเทียบส่วนผสมในอัตราส่วนต่างๆ</h2>
+                <p class="text-center text-gray-600 mb-6">แผนภูมินี้แสดงปริมาณคลอรีนและน้ำประปาที่ต้องใช้เพื่อเติมน้ำยาให้เต็ม 100 ลิตร (จากถังเปล่า) ในแต่ละอัตราส่วน</p>
+                <div class="chart-container">
+                    <canvas id="ratioChart"></canvas>
+                </div>
+            </section>
+            
+            <section id="tables-section">
+                <h2 class="text-2xl md:text-3xl font-bold text-center mb-6">ตารางอ้างอิงฉบับย่อ (ไม่มีทศนิยม)</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    
+                    <div class="bg-white rounded-xl shadow-lg p-4 md:p-6">
+                        <h3 class="font-bold text-xl text-center mb-4">อัตราส่วน 1:1</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs uppercase bg-[#E1F1FB]">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-2">เหลือ (ลิตร)</th>
+                                        <th scope="col" class="px-4 py-2">คลอรีน (ลิตร)</th>
+                                        <th scope="col" class="px-4 py-2">น้ำ (ลิตร)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-1-1"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-lg p-4 md:p-6">
+                        <h3 class="font-bold text-xl text-center mb-4">อัตราส่วน 1:4</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs uppercase bg-[#E1F1FB]">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-2">เหลือ (ลิตร)</th>
+                                        <th scope="col" class="px-4 py-2">คลอรีน (ลิตร)</th>
+                                        <th scope="col" class="px-4 py-2">น้ำ (ลิตร)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-1-4"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-lg p-4 md:p-6">
+                        <h3 class="font-bold text-xl text-center mb-4">อัตราส่วน 1:9</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs uppercase bg-[#E1F1FB]">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-2">เหลือ (ลิตร)</th>
+                                        <th scope="col" class="px-4 py-2">คลอรีน (ลิตร)</th>
+                                        <th scope="col" class="px-4 py-2">น้ำ (ลิตร)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-1-9"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <section id="apps-script-embed" class="bg-white rounded-xl shadow-lg p-6 md:p-8 mb-12">
+                <h2 class="text-2xl md:text-3xl font-bold text-center mb-4">ตัวอย่างการทำงานบน Google Apps Script</h2>
+                <p class="text-center text-gray-600 mb-6">คุณสามารถดูและใช้งานเครื่องคำนวณนี้ที่โฮสต์บน Google Apps Script ได้โดยตรงจากด้านล่างนี้</p>
+                <div class="relative w-full overflow-hidden rounded-lg" style="padding-top: 56.25%;"> <!-- 16:9 Aspect Ratio -->
+                    <iframe 
+                        src="https://script.google.com/macros/s/AKfycbwNi0X17hu42FJStEhu-GvlaufC7rVPI82upBXP4jPQRNnX3lV80kj0p3L9puW4Q1wg3g/exec" 
+                        frameborder="0" 
+                        allowfullscreen 
+                        class="absolute top-0 left-0 w-full h-full"
+                    ></iframe>
+                </div>
+            </section>
+        </main>
+        
+        <footer class="text-center mt-12 py-4 border-t">
+            <p class="text-gray-500">สร้างสรรค์โดยผู้เชี่ยวชาญด้านข้อมูลและการแสดงภาพ</p>
+        </footer>
+
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const remainingVolumeSlider = document.getElementById('remainingVolume');
+    const ratioSelector = document.getElementById('ratioSelector');
+    const remainingValueSpan = document.getElementById('remainingValue');
+    const toAddValueSpan = document.getElementById('toAddValue');
+    const chlorineValueSpan = document.getElementById('chlorineValue');
+    const waterValueSpan = document.getElementById('waterValue');
+
+    let currentRatio = '1:4';
+
+    function calculateAndDisplay() {
+        const remainingVolume = parseInt(remainingVolumeSlider.value);
+        const volumeToAdd = 100 - remainingVolume;
+
+        const ratioParts = currentRatio.split(':').map(Number);
+        const totalParts = ratioParts[0] + ratioParts[1];
+
+        const chlorineNeeded = (volumeToAdd * ratioParts[0]) / totalParts;
+        const waterNeeded = (volumeToAdd * ratioParts[1]) / totalParts;
+
+        remainingValueSpan.textContent = remainingVolume;
+        toAddValueSpan.textContent = volumeToAdd;
+        chlorineValueSpan.textContent = chlorineNeeded.toFixed(2).replace(/\.00$/, '');
+        waterValueSpan.textContent = waterNeeded.toFixed(2).replace(/\.00$/, '');
+    }
+    
+    remainingVolumeSlider.addEventListener('input', calculateAndDisplay);
+
+    ratioSelector.addEventListener('click', function(e) {
+        if (e.target.classList.contains('ratio-btn')) {
+            document.querySelectorAll('.ratio-btn').forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            currentRatio = e.target.dataset.ratio;
+            calculateAndDisplay();
+        }
+    });
+
+    function generateTableData(ratioString, tableId) {
+        const tableBody = document.getElementById(tableId);
+        if (!tableBody) return;
+        
+        const ratioParts = ratioString.split(':').map(Number);
+        const totalParts = ratioParts[0] + ratioParts[1];
+        let html = '';
+
+        for (let remaining = 100; remaining >= 0; remaining -= 10) {
+            const toAdd = 100 - remaining;
+            const chlorine = (toAdd * ratioParts[0]) / totalParts;
+            const water = (toAdd * ratioParts[1]) / totalParts;
+            html += `<tr class="bg-white border-b hover:bg-gray-50">
+                        <td class="px-4 py-2 font-semibold">${remaining}</td>
+                        <td class="px-4 py-2">${chlorine.toFixed(2).replace(/\.00$/, '')}</td>
+                        <td class="px-4 py-2">${water.toFixed(2).replace(/\.00$/, '')}</td>
+                    </tr>`;
+        }
+        tableBody.innerHTML = html;
+    }
+
+    generateTableData('1:1', 'table-1-1');
+    generateTableData('1:4', 'table-1-4');
+    generateTableData('1:9', 'table-1-9');
+    
+    const ctx = document.getElementById('ratioChart').getContext('2d');
+    const ratioChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['1:1', '1:2', '1:4', '1:6', '1:9'],
+            datasets: [{
+                label: 'คลอรีน 10%',
+                data: [50, 33.33, 20, 14.29, 10],
+                backgroundColor: '#008DD5',
+            }, {
+                label: 'น้ำประปา',
+                data: [50, 66.67, 80, 85.71, 90],
+                backgroundColor: '#9AD8F7',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            const item = tooltipItems[0];
+                            let label = item.chart.data.labels[item.dataIndex];
+                            if (Array.isArray(label)) {
+                              return label.join(' ');
+                            } else {
+                              return label;
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    title: {
+                        display: true,
+                        text: 'อัตราส่วนการผสม (คลอรีน : น้ำ)',
+                        font: { size: 14 }
+                    }
+                },
+                y: {
+                    stacked: true,
+                    title: {
+                        display: true,
+                        text: 'ปริมาณที่ต้องเติม (ลิตร)',
+                        font: { size: 14 }
+                    },
+                    max: 100
+                }
+            }
+        }
+    });
+
+    calculateAndDisplay();
+});
+</script>
 </body>
 </html>
